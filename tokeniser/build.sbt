@@ -2,7 +2,7 @@ import DockerKeys._
 import sbtdocker.{ Dockerfile, ImageName}
 import com.typesafe.sbt.packager.Keys._
 
-name := "poc_cluster_akka_docker_tokeniser"
+name := "poc_cluster_akka_docker_tok"
 
 maintainer in Docker := "Xebia France <poc@xebia.fr>"
 
@@ -22,7 +22,7 @@ dockerfile in docker <<= (name, stagingDirectory in Universal) map {
       // Use a base image that contain Java
       from("relateiq/oracle-java8")
       maintainer("Xebia France <poc@xebia.fr>")
-      expose(1600)
+      expose(32000)
       add(stageDir, workingDir)
       run("chmod",  "+x",  s"/opt/${appName}/bin/${appName}")
       run("chmod",  "+x",  s"/opt/${appName}/bin/start")
@@ -34,7 +34,7 @@ dockerfile in docker <<= (name, stagingDirectory in Universal) map {
 
 imageName in docker := {
   ImageName(
-    namespace = Some("xebia.fr"),
+    namespace = Some("xebiafrance"),
     repository = name.value
     //,tag = Some("v" + version.value))
   )
