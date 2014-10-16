@@ -2,7 +2,7 @@ package fr.xebia.poc.core
 
 import java.net.URL
 
-import akka.actor.{ActorSystem, Address}
+import akka.actor.{AddressFromURIString, ActorSystem, Address}
 import akka.cluster.Cluster
 import org.json4s._
 import org.json4s.native.JsonMethods._
@@ -22,7 +22,7 @@ object SeedDiscovery {
     val cluster = Cluster(system)
     val seedNodes = if (System.getenv.isDefinedAt("SEED_NODES")) {
       println( s"""Starting with seed-nodes from env variable $$SEED_NODES""")
-      immutable.Seq.empty[Address]
+      System.getenv("SEED_NODES").split(',').map(AddressFromURIString.apply).toList
     } else {
       println(s"Discovering seed-nodes from marathon  ($marathonHost,$marathonPort)")
       SeedDiscovery.seedNodesFromMarathon(system.name, marathonHost, marathonPort)
@@ -50,7 +50,7 @@ object SeedDiscovery {
       case taskProperties: Map[String, Any] => taskProperties
     }.map(task => (task("host"), task("ports"))).map {
       case (extractIp(ip), List(port)) =>
-        (ip, port.asInstanceOf[BigInt].toInt)
+        (ip.replaceAll("-", "\\."), port.asInstanceOf[BigInt].toInt)
     }.map {
       case (ip, port) => Address("akka.tcp", systemName, ip, port)
     }
