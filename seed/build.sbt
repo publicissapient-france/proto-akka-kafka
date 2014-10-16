@@ -4,7 +4,7 @@ import com.typesafe.sbt.packager.Keys._
 
 name := "poc_cluster_akka_docker_seed"
 
-maintainer in Docker := "Xebia France <poc@xebia.fr>"
+maintainer in Docker := "Xebia France <info@xebia.fr>"
 
 packageArchetype.java_server
 
