@@ -1,12 +1,10 @@
 package fr.xebia.poc
 
-import akka.actor.{Props, ActorSystem}
-import com.typesafe.config.ConfigFactory
+import akka.actor.Props
 import fr.xebia.poc.core.SeedDiscovery
 
 object StartTokeniser extends App {
-  val system = ActorSystem.create("clustering-cluster", ConfigFactory.load("reference.conf"))
-  SeedDiscovery.joinCluster(system)
+  val cluster = SeedDiscovery.joinCluster()
 
-  system.actorOf(Props[Tokenizer], "tokenizer")
+  cluster.system.actorOf(Props[Tokenizer], "tokenizer")
 }

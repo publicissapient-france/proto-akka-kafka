@@ -2,8 +2,9 @@ package fr.xebia.poc.core
 
 import java.net.URL
 
-import akka.actor.{AddressFromURIString, ActorSystem, Address}
+import akka.actor.{ActorSystem, Address, AddressFromURIString}
 import akka.cluster.Cluster
+import com.typesafe.config.ConfigFactory
 import org.json4s._
 import org.json4s.native.JsonMethods._
 
@@ -17,7 +18,18 @@ object SeedDiscovery {
   private val marathonHost = "54.195.251.225"
   private val marathonPort = 8080
 
-  def joinCluster(system: ActorSystem): Unit = {
+  def joinCluster(): Cluster = {
+
+    println(
+      s"""
+         |
+         |
+         |Environment variables: ${System.getenv().mkString("\n")}
+         |
+         |
+         |""".stripMargin)
+
+    val system = ActorSystem.create("clustering-cluster", ConfigFactory.load("reference.conf"))
 
     val cluster = Cluster(system)
     val seedNodes = if (System.getenv.isDefinedAt("SEED_NODES")) {
@@ -29,13 +41,27 @@ object SeedDiscovery {
     }
 
     if (seedNodes.isEmpty) {
-      println("First to join the cluster, no seed-nodes found")
+      println(
+        """
+          |
+          |
+          |First to join the cluster, no seed-nodes found
+          |
+          |
+        """.stripMargin)
     } else {
-      println( s"""Joining the cluster with seed-nodes [${seedNodes.mkString(", ")}]""")
+      println(
+        s"""
+           |
+           |
+           |Joining the cluster with seed-nodes [${seedNodes.mkString(", ")}]
+           |
+           |
+           |""".stripMargin)
       cluster.joinSeedNodes(seedNodes)
     }
 
-
+    cluster
   }
 
   private def seedNodesFromMarathon(systemName: String, marathonHost: String, marathonPort: Int): immutable.Seq[Address] = {
