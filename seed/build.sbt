@@ -21,7 +21,7 @@ dockerfile in docker <<= (name, stagingDirectory in Universal) map {
     new Dockerfile {
       // Use a base image that contain Java
       from("relateiq/oracle-java8")
-      maintainer("Xebia France <poc@xebia.fr>")
+      maintainer("Xebia France <info@xebia.fr>")
       expose(32000)
       add(stageDir, workingDir)
       run("chmod",  "+x",  s"/opt/${appName}/bin/${appName}")

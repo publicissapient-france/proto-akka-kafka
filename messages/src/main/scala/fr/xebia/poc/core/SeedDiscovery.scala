@@ -1,22 +1,25 @@
 package fr.xebia.poc.core
 
-import java.net.URL
+import java.net.{InetSocketAddress, URL}
 
 import akka.actor.{ActorSystem, Address, AddressFromURIString}
 import akka.cluster.Cluster
 import com.typesafe.config.ConfigFactory
-import org.json4s._
-import org.json4s.native.JsonMethods._
+import org.apache.curator.framework.CuratorFrameworkFactory
+import org.apache.curator.retry.ExponentialBackoffRetry
+import org.apache.curator.framework.recipes.leader.LeaderLatch
+import scala.collection.immutable
+import org.apache.zookeeper.KeeperException.NodeExistsException
 
 import scala.collection.convert.wrapAsScala._
 import scala.collection.immutable
 import scala.io.Source
+import scala.util.{Success, Failure, Try}
 
 object SeedDiscovery {
 
   private val extractIp = """ip-([\d-]*)\..*""".r
-  private val marathonHost = "54.195.251.225"
-  private val marathonPort = 8080
+
 
   def joinCluster(): Cluster = {
 
@@ -32,13 +35,23 @@ object SeedDiscovery {
     val system = ActorSystem.create("clustering-cluster", ConfigFactory.load("reference.conf"))
 
     val cluster = Cluster(system)
-    val seedNodes = if (System.getenv.isDefinedAt("SEED_NODES")) {
+
+
+    val address = cluster.selfAddress
+
+    val seedNodes = ClusteringEnvironment.seedNodes.map { seeds =>
+
       println( s"""Starting with seed-nodes from env variable $$SEED_NODES""")
-      System.getenv("SEED_NODES").split(',').map(AddressFromURIString.apply).toList
-    } else {
-      println(s"Discovering seed-nodes from marathon  ($marathonHost,$marathonPort)")
-      SeedDiscovery.seedNodesFromMarathon(system.name, marathonHost, marathonPort)
-    }
+      seeds.split(',').map(AddressFromURIString.apply).toList
+
+    }.orElse {
+
+      ClusteringEnvironment.marathonAddress.map { marathonAddress =>
+
+        println(s"Discovering seed-nodes from marathon:  ($marathonAddress)")
+        SeedDiscovery.seedNodesFromMarathon(system.name, marathonAddress.getHostName, marathonAddress.getPort)
+      }
+    }.getOrElse(immutable.Seq.empty)
 
     if (seedNodes.isEmpty) {
       println(
@@ -49,12 +62,17 @@ object SeedDiscovery {
           |
           |
         """.stripMargin)
+
+      cluster.joinSeedNodes(List(cluster.selfAddress))
+
     } else {
       println(
         s"""
            |
            |
-           |Joining the cluster with seed-nodes [${seedNodes.mkString(", ")}]
+           |Joining the cluster with seed-nodes [${
+          seedNodes.mkString(", ")
+        }]
            |
            |
            |""".stripMargin)
@@ -65,12 +83,14 @@ object SeedDiscovery {
   }
 
   private def seedNodesFromMarathon(systemName: String, marathonHost: String, marathonPort: Int): immutable.Seq[Address] = {
-    val marathonWS = Source.fromURL(new URL("http", marathonHost, marathonPort, "/v2/apps/akka-cluster-seed/tasks"))
+    val marathonWS = Try {
+      Source.fromURL(new URL("http", marathonHost, marathonPort, "/v2/apps/akka-cluster-seed/tasks"))
+    }
 
-    val reply = marathonWS.getLines().toList.mkString("")
-    val tasks: JValue = parse(reply)
+    val reply = marathonWS.map(_.getLines().toList.mkString(""))
+    val tasks = reply.map(parse(_))
 
-    tasks.children.collect {
+    val result = tasks.map(_.children.collect {
       case array: JArray => array
     }.flatMap(_.values).collect {
       case taskProperties: Map[String, Any] => taskProperties
@@ -79,6 +99,25 @@ object SeedDiscovery {
         (ip.replaceAll("-", "\\."), port.asInstanceOf[BigInt].toInt)
     }.map {
       case (ip, port) => Address("akka.tcp", systemName, ip, port)
+    })
+
+    result match {
+      case Success(addresses) =>
+        addresses
+
+      case Failure(e) =>
+        println(s"Can't join marathon, ${e.getMessage}")
+        immutable.Seq.empty
+    }
+  }
+
+  private object ClusteringEnvironment {
+
+    def seedNodes = Option(System.getenv("SEED_NODES"))
+
+    def marathonAddress = (Option(System.getenv("MARATHON_IP")), Option(System.getenv("MARATHON_PORT"))) match {
+      case (Some(host), Some(port)) => Some(new InetSocketAddress(host, port.toInt))
+      case _ => None
     }
   }
 
