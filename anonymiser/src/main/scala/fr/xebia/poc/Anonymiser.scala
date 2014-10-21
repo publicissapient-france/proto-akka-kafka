@@ -8,7 +8,7 @@ class Anonymiser extends Actor {
 
   def receive: Receive = {
     case name: String =>
-      val replaced = name.replaceAll(".", "X")
+      val replaced = name.replaceAll(".", "Y")
       println(s"$name => $replaced")
 
       import context.dispatcher
