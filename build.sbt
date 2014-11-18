@@ -7,3 +7,5 @@ lazy val tokeniser = project.dependsOn(messages)
 lazy val anonymiser = project.dependsOn(messages)
 
 lazy val blacklist = project.dependsOn(messages)
+
+lazy val gatewaybank = project.dependsOn(messages)
