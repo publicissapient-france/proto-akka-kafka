@@ -2,7 +2,7 @@ import DockerKeys._
 import sbtdocker.{ Dockerfile, ImageName}
 import com.typesafe.sbt.packager.Keys._
 
-name := "poc_cluster_akka_docker_tok"
+name := "poc_cluster_akka_docker_supervisor"
 
 maintainer in Docker := "Xebia France <poc@xebia.fr>"
 
@@ -48,9 +48,12 @@ libraryDependencies += "com.typesafe.akka" %% "akka-cluster" % "2.3.6"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-stream-experimental" % "0.7"
 
+libraryDependencies += "com.typesafe.akka" %% "akka-testkit" % "2.3.6" % "test"
+
+libraryDependencies += "org.scalatest" %% "scalatest" % "2.2.0" % "test"
+
 resolvers += "krasserm at bintray" at "http://dl.bintray.com/krasserm/maven"
 
 libraryDependencies += "com.github.krasserm" %% "akka-persistence-kafka" % "0.3.2"
 
 libraryDependencies += "org.scalacheck" %% "scalacheck" % "1.11.0"
-

@@ -1,7 +1,8 @@
 package fr.xebia.poc
 
 import akka.actor.Actor
-import fr.xebia.poc.message.{CardRefused, CardAccepted, CreditCardNumber, BlacklistRequest}
+import fr.xebia.poc.message.TermColors._
+import fr.xebia.poc.message._
 import scala.io.Source
 
 class Blacklist extends Actor {
@@ -24,7 +25,14 @@ class Blacklist extends Actor {
     case BlacklistRequest(request) =>
 
       val exist = blacklistedCards(request)
-      val response = if(exist) CardRefused else CardAccepted
+      val response =
+        if (!exist) {
+          println(s"${ANSI_GREEN}[OK]${ANSI_RESET} CardAccepted (${request.digits})")
+          CardAccepted
+        } else {
+          println(s"${ANSI_RED}[KO]${ANSI_RESET} CardRefused (${request.digits})")
+          CardRefused
+        }
 
       sender() ! response
 

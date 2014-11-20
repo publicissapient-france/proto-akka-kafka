@@ -1,69 +1,87 @@
 package fr.xebia.poc
 
-import akka.actor.{Props, Cancellable, Actor}
+import java.util.UUID
+
+import akka.actor.{ActorRef, Actor, Cancellable}
 import akka.cluster.ClusterEvent.{MemberRemoved, MemberUp}
 import akka.routing.FromConfig
-import fr.xebia.poc.message.{CreditCardNumber, Payment}
+import fr.xebia.poc.message.Transaction
 import org.scalacheck.Gen
-import concurrent.duration._
-import collection.convert.wrapAsScala._
 
-class ClusterWatcher extends Actor {
+import scala.collection.convert.wrapAsScala._
+import scala.concurrent.duration._
 
-  private var privacyNodes = 0
-  private var tokenizerNodes = 0
+class ClusterWatcher(logger: ActorRef) extends Actor {
+
+  private var supervisorNodes = 0
+  private var blacklistNodes = 0
+  private var gatewayBankNodes = 0
 
   var running = Option.empty[Cancellable]
   import context.dispatcher
 
   def receive: Receive = {
-    case MemberUp(member) if member.hasRole("privacy") =>
-      privacyNodes += 1
-      if (privacyNodes == 1 && tokenizerNodes > 0) {
+
+    case MemberUp(member) if member.hasRole("supervisor") =>
+      supervisorNodes += 1
+      if (supervisorNodes == 1 && blacklistNodes > 0 && gatewayBankNodes > 0) {
         start()
       }
 
-    case MemberUp(member) if member.hasRole("tokenizer") =>
-      tokenizerNodes += 1
-      if (tokenizerNodes == 1 && privacyNodes > 0) {
+    case MemberUp(member) if member.hasRole("blacklist") =>
+      blacklistNodes += 1
+      if (blacklistNodes == 1 && supervisorNodes > 0 && gatewayBankNodes > 0) {
         start()
       }
 
-    case MemberRemoved(member, _) if member.hasRole("privacy") =>
-      privacyNodes -= 1
-      if (privacyNodes < 1) {
+    case MemberUp(member) if member.hasRole("gatewaybank") =>
+      gatewayBankNodes += 1
+      if (gatewayBankNodes == 1 && supervisorNodes > 0 && blacklistNodes > 0) {
+        start()
+      }
+
+    case MemberRemoved(member, _) if member.hasRole("supervisor") =>
+      supervisorNodes -= 1
+      if (blacklistNodes < 1 && gatewayBankNodes < 1) {
         stop()
       }
 
-    case MemberRemoved(member, _) if member.hasRole("tokenizer") =>
-      tokenizerNodes -= 1
-      if (tokenizerNodes < 1) {
+    case MemberRemoved(member, _) if member.hasRole("blacklist") =>
+      blacklistNodes -= 1
+      if (supervisorNodes < 1 && gatewayBankNodes < 1) {
+        stop()
+      }
+
+    case MemberRemoved(member, _) if member.hasRole("gatewaybank") =>
+      gatewayBankNodes -= 1
+      if (supervisorNodes < 1 && blacklistNodes < 1) {
         stop()
       }
 
   }
 
-  val tokenizer = context.system.actorOf(FromConfig.props(), "tokenizer")
-  val privacy = context.system.actorOf(FromConfig.props(), "privacy")
+  val supervisor = context.system.actorOf(FromConfig.props(), "supervisor")
 
   def start() {
 
     running = Some(context.system.scheduler.schedule(3.second, 250.milliseconds) {
 
-      genPayment.sample.foreach { payment =>
-        val paymentActor = context.system.actorOf(Props(classOf[PaymentAggregator], tokenizer, privacy), payment.uuid)
-        paymentActor ! payment
+      genTransaction.sample.foreach { transaction =>
+        supervisor.tell(transaction, logger)
       }
+
     })
+
   }
 
-  val genPayment: Gen[Payment] = for {
-    amount <- Gen.choose(10, 3500)
-    nameChars <- Gen.listOf(Gen.alphaUpperChar).map(_.take(20))
-    name = nameChars.mkString("")
-    creditCardDigits <- Gen.containerOfN(16, Gen.choose(0, 9))
-    ccNumber = creditCardDigits.mkString("")
-  } yield Payment(CreditCardNumber(ccNumber), amount, name)
+  val genTransaction: Gen[Transaction] = for {
+    clientId <- Gen.choose(0, 200)
+    client = "client-" + clientId
+    cardDigits <- Gen.containerOfN(16, Gen.choose(0, 9))
+    card = cardDigits.mkString("")
+    price <-  Gen.choose(10, 3500)
+  } yield Transaction(UUID.randomUUID(), client, card, price)
+
 
   def stop(): Unit = {
     running.foreach(_.cancel())

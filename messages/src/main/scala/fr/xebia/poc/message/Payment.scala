@@ -1,7 +1,7 @@
 package fr.xebia.poc.message
 
-import java.util.UUID
+sealed trait PaymentReply
 
-case class Payment(creditCardNumber: CreditCardNumber, amount: Double, name: String) {
-   val uuid: String = UUID.randomUUID().toString
- }
+case object PaymentAccepted extends PaymentReply
+
+case object PaymentRefused extends PaymentReply

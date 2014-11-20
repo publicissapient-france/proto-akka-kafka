@@ -1,11 +1,9 @@
 lazy val messages = project
 
-lazy val seed = project.dependsOn(messages)
-
-lazy val tokeniser = project.dependsOn(messages)
-
-lazy val anonymiser = project.dependsOn(messages)
-
 lazy val blacklist = project.dependsOn(messages)
 
 lazy val gatewaybank = project.dependsOn(messages)
+
+lazy val supervisor = project.dependsOn(messages)
+
+lazy val seed = project.dependsOn(messages)

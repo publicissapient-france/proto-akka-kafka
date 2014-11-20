@@ -1,6 +1,10 @@
 package fr.xebia.poc.message
 
-case class TransactionRequest(request: CreditCardNumber)
+import java.util.UUID
+
+case class Transaction(uuid: UUID, clientId: String, card: String, price: Double)
+
+case class TransactionRequest(uuid: UUID, client: Client, card: CreditCardNumber, price: Double)
 
 sealed trait TransactionReply
 

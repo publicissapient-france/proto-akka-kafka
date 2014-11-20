@@ -1,5 +1,7 @@
 package fr.xebia.poc
 
+import java.util.UUID
+
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestProbe
 import fr.xebia.poc.message._
@@ -16,10 +18,9 @@ class TestGatewayBank extends FunSpec with BeforeAndAfterAll {
 
       val probe = TestProbe()
 
-      val creditCardNumber = CreditCardNumber("0123456789012345")
-      probe.send(gatewayBankActor, TransactionRequest(creditCardNumber))
+      probe.send(gatewayBankActor, TransactionRequest(UUID.randomUUID, Client("1"), CreditCardNumber("0123456789012345"), 10.50))
 
-      probe.expectMsg(TransactionAccepted)
+      probe.expectMsg(PaymentAccepted)
 
     }
 
@@ -27,10 +28,9 @@ class TestGatewayBank extends FunSpec with BeforeAndAfterAll {
 
       val probe = TestProbe()
 
-      val creditCardNumber = CreditCardNumber("1111111111111119")
-      probe.send(gatewayBankActor, TransactionRequest(creditCardNumber))
+      probe.send(gatewayBankActor, TransactionRequest(UUID.randomUUID, Client("1"), CreditCardNumber("1111111111111119"), 19.99))
 
-      probe.expectMsg(TransactionRefused)
+      probe.expectMsg(PaymentRefused)
 
     }
 
